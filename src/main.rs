@@ -9,7 +9,7 @@ use bevy_cursor::{CursorLocation, TrackCursorPlugin};
 use bevy_inspector_egui::{prelude::*, quick::ResourceInspectorPlugin};
 use bevy_xpbd_2d::{
     components::{AngularDamping, LinearVelocity, RigidBody},
-    plugins::{collision::Collider, PhysicsPlugins},
+    plugins::{collision::Collider, PhysicsPlugins, PhysicsDebugPlugin},
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -19,7 +19,7 @@ struct Configuration {
     decceleration: f32,
     max_speed: f32,
     dash_speed: f32,
-    dash_decelration: f32,
+    dash_deceleration: f32,
     dash_duration: f32,
 }
 
@@ -30,7 +30,7 @@ impl Default for Configuration {
             decceleration: 4000.0,
             max_speed: 800.0,
             dash_speed: 2000.0,
-            dash_decelration: 200000.0,
+            dash_deceleration: 200000.0,
             dash_duration: 0.1,
         }
     }
@@ -41,6 +41,44 @@ struct Player {
     speed: Vec2,
 }
 
+#[derive(Bundle)]
+struct PlayerBundle {
+    player: Player,
+    direction: Direction,
+    angular_damping: AngularDamping,
+    rigid_body: RigidBody,
+    collider: Collider,
+    animated_sprite_bundle: AnimatedSpriteBundle,
+
+}
+
+impl PlayerBundle {
+    fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
+        Self {
+            player: Player { speed: Vec2::ZERO },
+            direction: Direction(Vec2::default()),
+            angular_damping: AngularDamping(100.),
+            rigid_body: RigidBody::Dynamic,
+            collider: Collider::rectangle(0.5, 0.5),
+            animated_sprite_bundle: AnimatedSpriteBundle {
+                animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
+                spritesheet: spritesheet_handle,
+                ..Default::default()
+            },
+        }
+    }
+}
+
+#[derive(Default, Component, Reflect)]
+struct Enemy;
+
+#[derive(Bundle)]
+struct EnemyBundle {
+}
+
+#[derive(Resource, Reflect, Deref, DerefMut)]
+struct EnemySpawnTimer(Timer);
+
 fn main() {
     App::new()
         .add_plugins((
@@ -49,13 +87,26 @@ fn main() {
             AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
-        .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
+        .register_type::<EnemySpawnTimer>()
         .register_type::<Configuration>() // you need to register your type to display it
+        .insert_resource(EnemySpawnTimer(Timer::from_seconds(1.0, TimerMode::Repeating)))
+        .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .add_plugins(PhysicsPlugins::default())
+        .add_plugins(PhysicsDebugPlugin::default())
         // .add_systems(Startup, setup_aesprites)
         .add_systems(Update, (keyboard_input, look_cursor, dash, apply_force))
         .run();
+}
+
+
+fn spawn_enemies(
+    mut commands: Commands,
+    spawn_timer: Res<EnemySpawnTimer>,
+) {
+    for _ in 0..spawn_timer.0.times_finished_this_tick() {
+    }
+
 }
 
 fn setup(
@@ -66,7 +117,7 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     // load the spritesheet and get it's handle
-    let sheet_handle = load_spritesheet(
+    let spritesheet = load_spritesheet(
         &mut commands,
         &asset_server,
         "Tiny Swords/Factions/Goblins/Troops/Torch/Red/Torch_Red.json",
@@ -74,22 +125,7 @@ fn setup(
     );
 
     // spawn the animated sprite
-    commands.spawn((
-        Player { speed: Vec2::ZERO },
-        Direction(Vec2::default()),
-        AngularDamping(100.),
-        RigidBody::Dynamic,
-        Collider::triangle(
-            Vec2::new(-0.5, -0.5),
-            Vec2::new(0.5, 0.0),
-            Vec2::new(-0.5, 0.5),
-        ),
-        AnimatedSpriteBundle {
-            animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
-            spritesheet: sheet_handle,
-            ..Default::default()
-        },
-    ));
+    commands.spawn(PlayerBundle::new(spritesheet));
 }
 
 #[derive(Default, Component, Reflect)]
@@ -128,7 +164,7 @@ fn dash(
                 dash.duration -= time.delta_seconds();
             } else {
                 let force = dash.speed.normalize_or_zero()
-                    * configurition.dash_decelration
+                    * configurition.dash_deceleration
                     * time.delta_seconds();
                 if force.length() >= dash.speed.length() {
                     dash.speed = Vec2::ZERO;
