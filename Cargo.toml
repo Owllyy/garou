@@ -6,11 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.13.0", features = ["wayland", "dynamic_linking"] }
-bevy-inspector-egui = { version = "0.23.2", features = ["highlight_changes"] }
-bevy_asepritesheet = "0.6.0"
-bevy_cursor = { version = "0.3.0", features = ["2d"] }
-bevy_xpbd_2d = "0.4.2"
+bevy = { version = "0.12.0", features = ["wayland", "dynamic_linking"] }
+bevy_cursor = { version = "0.2.0", features = ["2d"] }
+bevy_ecs_ldtk = "0.9.0"
+bevy-inspector-egui = { version = "0.22.0", features = ["highlight_changes"] }
+bevy_asepritesheet = "0.5.0"
+bevy_xpbd_2d = "0.3.0"
 
 [profile.dev]
 opt-level = 1

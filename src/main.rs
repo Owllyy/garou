@@ -1,15 +1,14 @@
 // This is the most basic use example from the readme.md
 
+use bevy_ecs_ldtk::prelude::*;
 use bevy::{
-    prelude::*,
-    sprite::Anchor,
+    math::vec3, prelude::*, sprite::Anchor
 };
 use bevy_asepritesheet::prelude::*;
-use bevy_cursor::TrackCursorPlugin;
 use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
-    components::{LinearVelocity, RigidBody},
-    plugins::{collision::Collider, PhysicsPlugins, PhysicsDebugPlugin}, resources::Gravity,
+    components::{LinearVelocity, RigidBody, Collider},
+    plugins::{PhysicsPlugins, PhysicsDebugPlugin}, resources::Gravity,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -53,15 +52,19 @@ struct PlayerBundle {
 }
 
 impl PlayerBundle {
-    fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
+    fn new(spritesheet: Handle<Spritesheet>) -> Self {
         Self {
             player: Player { speed: Vec2::ZERO },
             direction: Direction(Vec2::ZERO),
             rigid_body: RigidBody::Dynamic,
-            collider: Collider::rectangle(70.0, 70.0),
+            collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
-                spritesheet: spritesheet_handle,
+                sprite_bundle: SpriteSheetBundle{
+                    transform: Transform::from_translation(vec3(1., 1., 10.)),
+                    ..Default::default()
+                },
+                spritesheet,
                 ..Default::default()
             },
         }
@@ -84,7 +87,7 @@ impl EnemyBundle {
         Self {
             enemy: Enemy,
             rigid_body: RigidBody::Dynamic,
-            collider: Collider::rectangle(70.0, 70.0),
+            collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(5)),
                 spritesheet: spritesheet_handle,
@@ -101,7 +104,6 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            TrackCursorPlugin,
             AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
@@ -115,11 +117,12 @@ fn main() {
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .insert_resource(Gravity::ZERO)
         // .add_systems(Startup, setup_aesprites)
-        .add_systems(Update, (keyboard_input, dash, apply_force))
+        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam))
         .add_systems(Update, spawn_enemies)
+        .add_plugins(LdtkPlugin)
+        .insert_resource(LevelSelection::index(0))
         .run();
 }
-
 
 fn spawn_enemies(
     time: Res<Time>,
@@ -156,6 +159,13 @@ fn setup(
         Anchor::Center,
     );
 
+    //spawn map
+    commands.spawn(LdtkWorldBundle {
+        ldtk_handle: asset_server.load("map.ldtk"),
+        transform: Transform::default().with_translation(vec3(0., 0., -1.)),
+        ..Default::default()
+    });
+
     // spawn the animated sprite
     commands.spawn(PlayerBundle::new(player_spritesheet));
 }
@@ -174,7 +184,7 @@ struct Dash {
 fn dash(
     time: Res<Time>,
     configuration: Res<Configuration>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input: Res<Input<KeyCode>>,
     mut command: Commands,
     mut query: Query<(Entity, &Direction, Option<&mut Dash>)>,
 ) {
@@ -210,31 +220,40 @@ fn dash(
     }
 }
 
+fn following_cam(
+    player: Query<&Transform, With<Player>>,
+    mut cam: Query<&mut Transform, (With<Camera>, Without<Player>)>
+) {
+    cam.single_mut().translation = player.single().translation;
+}
+
 fn keyboard_input(
     time: Res<Time>,
     configurition: Res<Configuration>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<(&mut Player, &mut Direction)>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<(&mut Player, &mut Direction, &mut SpriteAnimator)>,
 ) {
-    for (mut player, mut direction) in &mut query {
+    for (mut player, mut direction, mut animator) in &mut query {
         direction.0 = Vec2::ZERO;
-        if keyboard_input.pressed(KeyCode::KeyA) {
+        if keyboard_input.pressed(KeyCode::Left) {
             direction.0.x -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyD) {
+        if keyboard_input.pressed(KeyCode::Right) {
             direction.0.x += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyW) {
+        if keyboard_input.pressed(KeyCode::Up) {
             direction.0.y += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyS) {
+        if keyboard_input.pressed(KeyCode::Down) {
             direction.0.y -= 1.0;
         }
 
         if direction.0 != Vec2::ZERO {
+            animator.set_anim_index(2);
             player.speed +=
                 direction.0.normalize_or_zero() * configurition.acceleration * time.delta_seconds();
         } else {
+            animator.set_anim_index(1);
             let force = player.speed.normalize_or_zero()
                 * configurition.decceleration
                 * time.delta_seconds();
@@ -244,7 +263,6 @@ fn keyboard_input(
                 player.speed -= force;
             }
         }
-
         if player.speed.length() > configurition.max_speed {
             player.speed = player.speed.normalize_or_zero() * configurition.max_speed;
         }
