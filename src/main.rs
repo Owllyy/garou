@@ -21,17 +21,19 @@ struct Configuration {
     dash_speed: f32,
     dash_decelration: f32,
     dash_duration: f32,
+    dash_cooldown: f32,
 }
 
 impl Default for Configuration {
     fn default() -> Self {
         Self {
-            acceleration: 6000.0,
-            decceleration: 4000.0,
-            max_speed: 800.0,
-            dash_speed: 2000.0,
-            dash_decelration: 200000.0,
+            acceleration: 3000.0,
+            decceleration: 2000.0,
+            max_speed: 400.0,
+            dash_speed: 1000.0,
+            dash_decelration: 10000.0,
             dash_duration: 0.1,
+            dash_cooldown: 1.0,
         }
     }
 }
@@ -53,8 +55,7 @@ fn main() {
         .register_type::<Configuration>() // you need to register your type to display it
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .add_plugins(PhysicsPlugins::default())
-        // .add_systems(Startup, setup_aesprites)
-        .add_systems(Update, (keyboard_input, look_cursor, dash, apply_force))
+        .add_systems(Update, (keyboard_input, dash, apply_force))
         .run();
 }
 
@@ -92,27 +93,20 @@ fn setup(
     ));
 }
 
-#[derive(Default, Component, Reflect)]
-struct Dash {
-    speed: Vec2,
-    duration: f32,
-}
 
 #[derive(Default, Component)]
 struct Direction(Vec2);
 
-fn look_cursor(cursor: Res<CursorLocation>, mut query: Query<&mut Transform, With<Player>>) {
-    for mut transform in &mut query {
-        if let Some(cursor_pos) = cursor.world_position() {
-            let dir = cursor_pos - transform.translation.xy();
-            transform.rotation = Quat::from_axis_angle(Vec3::new(0.0, 0.0, 1.0), dir.to_angle())
-        }
-    }
+#[derive(Default, Component, Reflect)]
+struct Dash {
+    speed: Vec2,
+    duration: f32,
+    cooldown: f32,
 }
 
 fn dash(
     time: Res<Time>,
-    configurition: Res<Configuration>,
+    configuration: Res<Configuration>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut command: Commands,
     mut query: Query<(Entity, &Direction, Option<&mut Dash>)>,
@@ -120,21 +114,29 @@ fn dash(
     for (id, dir, dash) in &mut query {
         if keyboard_input.just_pressed(KeyCode::Space) && dash.is_none() {
             command.entity(id).insert(Dash {
-                speed: dir.0.normalize_or_zero() * configurition.dash_speed,
-                duration: configurition.dash_duration,
+                speed: dir.0.normalize_or_zero() * configuration.dash_speed,
+                duration: configuration.dash_duration,
+                cooldown: configuration.dash_cooldown,
             });
         } else if let Some(mut dash) = dash {
             if dash.duration > 0.0 {
                 dash.duration -= time.delta_seconds();
             } else {
-                let force = dash.speed.normalize_or_zero()
-                    * configurition.dash_decelration
-                    * time.delta_seconds();
-                if force.length() >= dash.speed.length() {
-                    dash.speed = Vec2::ZERO;
-                    command.entity(id).remove::<Dash>();
+                if dash.speed.length() > 0.{
+                    let force = dash.speed.normalize_or_zero()
+                        * configuration.dash_decelration
+                        * time.delta_seconds();
+                    if force.length() >= dash.speed.length() {
+                        dash.speed = Vec2::ZERO;
+                    } else {
+                        dash.speed -= force;
+                    }
                 } else {
-                    dash.speed -= force;
+                    if dash.cooldown > 0.0 {
+                        dash.cooldown -= time.delta_seconds();
+                    } else {
+                        command.entity(id).remove::<Dash>();
+                    }
                 }
             }
         }
