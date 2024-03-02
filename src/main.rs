@@ -37,6 +37,18 @@ impl Default for Configuration {
     }
 }
 
+
+#[derive(Component, Reflect)]
+struct Attack {
+    duration: f32,
+}
+
+impl Default for Attack {
+    fn default() -> Self {
+        Self { duration: 0.45 }
+    }
+}
+
 #[derive(Default, Component, Reflect)]
 struct Player {
     speed: Vec2,
@@ -121,6 +133,7 @@ fn main() {
         .add_systems(Update, spawn_enemies)
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
+        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, animate, attack))
         .run();
 }
 
@@ -230,15 +243,22 @@ fn following_cam(
 fn keyboard_input(
     time: Res<Time>,
     configurition: Res<Configuration>,
+    mut command: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Player, &mut Direction, &mut SpriteAnimator)>,
+    mut query: Query<(Entity, &mut Player, &mut Direction, &mut Transform)>,
 ) {
-    for (mut player, mut direction, mut animator) in &mut query {
+    for (entity, mut player, mut direction, mut transform) in &mut query {
         direction.0 = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::Left) {
             direction.0.x -= 1.0;
+            if transform.scale.x > 0. {
+                transform.scale.x *= -1.;
+            }
         }
         if keyboard_input.pressed(KeyCode::Right) {
+            if transform.scale.x < 0. {
+                transform.scale.x *= -1.;
+            }
             direction.0.x += 1.0;
         }
         if keyboard_input.pressed(KeyCode::Up) {
@@ -249,11 +269,9 @@ fn keyboard_input(
         }
 
         if direction.0 != Vec2::ZERO {
-            animator.set_anim_index(2);
             player.speed +=
                 direction.0.normalize_or_zero() * configurition.acceleration * time.delta_seconds();
         } else {
-            animator.set_anim_index(1);
             let force = player.speed.normalize_or_zero()
                 * configurition.decceleration
                 * time.delta_seconds();
@@ -266,6 +284,10 @@ fn keyboard_input(
         if player.speed.length() > configurition.max_speed {
             player.speed = player.speed.normalize_or_zero() * configurition.max_speed;
         }
+
+        if keyboard_input.pressed(KeyCode::K) {
+            command.entity(entity).insert(Attack::default());
+        }
     }
 }
 
@@ -275,5 +297,30 @@ fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, Option<&Dash>
         if let Some(dash) = dash {
             velocity.0 += dash.speed;
         }
+    }
+}
+
+fn attack(mut query: Query<(Entity, Option<&mut Attack>), With<Player>>,
+mut command: Commands,
+time: Res<Time>) 
+{
+    let (entity, attack) = query.single_mut();
+    if let Some(mut attack) = attack {
+        if attack.duration > 0. {
+            attack.duration -= time.delta_seconds();
+        } else {
+            command.entity(entity).remove::<Attack>();
+        }
+    }
+}
+
+fn animate(mut query: Query<(&Player, &mut SpriteAnimator, &Direction ,&Transform, Has<Dash>, Has<Attack>)>) {
+    let (_player, mut animator, direction,_transformm, _dash, attack) = query.single_mut();
+    if attack {
+        animator.set_anim_index(3);
+    } else if direction.0.length() > 0. {
+        animator.set_anim_index(2);
+    } else {
+        animator.set_anim_index(1);
     }
 }
