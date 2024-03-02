@@ -61,7 +61,7 @@ impl PlayerBundle {
             direction: Direction(Vec2::default()),
             angular_damping: AngularDamping(100.),
             rigid_body: RigidBody::Dynamic,
-            collider: Collider::rectangle(0.5, 0.5),
+            collider: Collider::rectangle(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
                 spritesheet: spritesheet_handle,
@@ -161,7 +161,7 @@ fn dash(
             } else {
                 if dash.speed.length() > 0.{
                     let force = dash.speed.normalize_or_zero()
-                        * configuration.dash_decelration
+                        * configuration.dash_deceleration
                         * time.delta_seconds();
                     if force.length() >= dash.speed.length() {
                         dash.speed = Vec2::ZERO;
