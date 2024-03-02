@@ -1,5 +1,6 @@
 // This is the most basic use example from the readme.md
 
+use bevy_ecs_ldtk::prelude::*;
 use bevy::{
     prelude::*,
     sprite::Anchor,
@@ -95,8 +96,7 @@ fn main() {
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .add_plugins(PhysicsPlugins::default())
-        .add_plugins(PhysicsDebugPlugin::default())
-        // .add_systems(Startup, setup_aesprites)
+        .add_plugins(LdtkPlugin)
         .add_systems(Update, (keyboard_input, dash, apply_force))
         .run();
 }
@@ -126,8 +126,29 @@ fn setup(
         Anchor::Center,
     );
 
+    //spawn map
+    commands.spawn(LdtkWorldBundle {
+        ldtk_handle: asset_server.load("my_project.ldtk"),
+        ..Default::default()
+    });
+
     // spawn the animated sprite
-    commands.spawn(PlayerBundle::new(spritesheet));
+    commands.spawn((
+        Player { speed: Vec2::ZERO },
+        Direction(Vec2::default()),
+        AngularDamping(100.),
+        RigidBody::Dynamic,
+        Collider::triangle(
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.5),
+        ),
+        AnimatedSpriteBundle {
+            animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
+            spritesheet: sheet_handle,
+            ..Default::default()
+        },
+    ));
 }
 
 
