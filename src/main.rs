@@ -2,13 +2,13 @@
 
 use bevy_ecs_ldtk::prelude::*;
 use bevy::{
-    math::vec3, prelude::*, sprite::Anchor
+    ecs::{query, system::adapter::new}, math::vec3, prelude::*, sprite::Anchor, time::Stopwatch
 };
 use bevy_asepritesheet::prelude::*;
 use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
     components::{AngularDamping, Collider, LinearVelocity, RigidBody},
-    plugins::{PhysicsDebugPlugin, PhysicsPlugins}, resources::Gravity,
+    plugins::{collision::contact_reporting::CollisionStarted, PhysicsDebugPlugin, PhysicsPlugins}, resources::Gravity,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -41,13 +41,28 @@ impl Default for Configuration {
 
 
 #[derive(Component, Reflect)]
-struct Attack {
-    duration: f32,
+struct Attack;
+
+#[derive(Component, Reflect)]
+struct Duration(f32);
+
+#[derive(Bundle)]
+struct AttackBundle {
+    attack: Attack,
+    transform: Transform,
+    collider: Collider,
+    duration: Duration,
 }
 
-impl Default for Attack {
+impl Default for AttackBundle {
     fn default() -> Self {
-        Self { duration: 0.45 }
+        Self { attack: Attack, transform: Transform::default(), collider: Collider::cuboid(70.0, 70.0), duration: Duration(0.45) }
+    }
+}
+
+impl AttackBundle {
+    fn new(position: Vec3) -> Self {
+        Self { attack: Attack, transform: Transform::from_translation(position), collider: Collider::cuboid(70.0, 70.0), duration: Duration(0.45) }
     }
 }
 
@@ -81,6 +96,34 @@ impl PlayerBundle {
                     ..Default::default()
                 },
                 spritesheet,
+                ..Default::default()
+            },
+        }
+    }
+}
+
+#[derive(Default, Component, Reflect)]
+struct Dead;
+
+#[derive(Bundle)]
+struct DeadBundle {
+    dead: Dead,
+    duration: Duration,
+    animated_sprite_bundle: AnimatedSpriteBundle,
+}
+
+impl DeadBundle {
+    fn new(spritesheet_handle: Handle<Spritesheet>, position: Vec3) -> Self {
+        Self {
+            dead: Dead,
+            duration: Duration(1.6),
+            animated_sprite_bundle: AnimatedSpriteBundle {
+                animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
+                spritesheet: spritesheet_handle,
+                sprite_bundle: SpriteSheetBundle{
+                    transform: Transform::from_translation(position),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         }
@@ -136,8 +179,8 @@ fn main() {
         .insert_resource(Gravity::ZERO)
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
-        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, attack))
         .add_systems(Update, (spawn_enemies, animate))
+        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, attack, damage_enemies, death))
         .add_systems(Update, enemies_follow_player)
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin::default())
@@ -179,6 +222,52 @@ fn spawn_enemies(
         commands.spawn(EnemyBundle::new(enemy_spritesheet));
     }
 }
+
+fn death(
+    time: Res<Time>,
+    mut commands: Commands,
+    mut query: Query<(Entity, &mut Duration), With<Dead>>)
+{
+    for (entity, mut dead) in query.iter_mut() {
+        if dead.0 > 0. {
+            dead.0 -= time.delta_seconds();
+        } else {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+fn damage_enemies(
+    mut commands: Commands,
+    enemy: Query<(Entity, &Transform), With<Enemy>>,
+    attack: Query<(Entity), With<Attack>>,
+    asset: Res<AssetServer>,
+    mut collision_event_reader: EventReader<CollisionStarted>) {
+        
+        for &CollisionStarted(e1, e2) in collision_event_reader.read() {
+            if enemy.get(e1).is_ok() && attack.get(e2).is_ok() {
+                let dead_spritesheet = load_spritesheet(
+                &mut commands,
+                &asset,
+                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
+                Anchor::Center,
+                );
+                let (_entity, position) = enemy.get(e1).unwrap();
+                commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
+                commands.entity(e1).despawn();
+            } else if enemy.get(e2).is_ok() && attack.get(e1).is_ok() {
+                let dead_spritesheet = load_spritesheet(
+                &mut commands,
+                &asset,
+                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
+                Anchor::Center,
+                );
+                let (_entity, position) = enemy.get(e2).unwrap();
+                commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
+                commands.entity(e2).despawn();
+            }
+        }
+    } 
 
 fn setup(
     mut commands: Commands,
@@ -268,12 +357,13 @@ fn keyboard_input(
     configurition: Res<Configuration>,
     mut command: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(Entity, &mut Player, &mut Direction, Option<&Attack>)>,
+    mut query: Query<(Entity, &mut Player, &mut Direction)>,
+    existing_attack: Query<&Attack>,
 ) {
-    for (entity, mut player, mut direction, attack) in &mut query {
+    for (entity, mut player, mut direction) in &mut query {
         direction.0 = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::Left) {
-            direction.0.x -= 1.0;
+            direction.0.x += -1.0;
         }
         if keyboard_input.pressed(KeyCode::Right) {
             direction.0.x += 1.0;
@@ -282,7 +372,7 @@ fn keyboard_input(
             direction.0.y += 1.0;
         }
         if keyboard_input.pressed(KeyCode::Down) {
-            direction.0.y -= 1.0;
+            direction.0.y += -1.0;
         }
 
         if direction.0 != Vec2::ZERO {
@@ -302,8 +392,9 @@ fn keyboard_input(
             player.speed = player.speed.normalize_or_zero() * configurition.max_speed;
         }
 
-        if keyboard_input.pressed(KeyCode::K) && attack.is_none() {
-            command.entity(entity).insert(Attack::default());
+        if keyboard_input.pressed(KeyCode::K) && existing_attack.get_single().is_err() {
+            let new_attack = command.spawn(AttackBundle::new(direction.0.extend(0.) * 50.)).id();
+            command.entity(entity).add_child(new_attack);
         }
     }
 }
@@ -317,42 +408,53 @@ fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, Option<&Dash>
     }
 }
 
-fn attack(mut query: Query<(Entity, Option<&mut LinearVelocity>, Option<&mut Attack>), With<Player>>,
+fn attack(mut query: Query<(Entity, Option<&mut LinearVelocity>, &Children), With<Player>>,
+mut attack: Query<&mut Duration, (With<Attack>, Without<Player>)>,
 mut command: Commands,
 time: Res<Time>) 
 {
-    let (entity, velocity, attack) = query.single_mut();
-    if let Some(mut attack) = attack {
-        if attack.duration > 0. {
+
+    let Ok((entity, velocity, children)) = query.get_single_mut() else {
+        return;
+    };
+    if let Some(& child) = children.get(0) {
+        let mut attack_child = attack.get_mut(child).unwrap();
+        if attack_child.0 > 0. {
             if let Some(mut velocity) = velocity {
                 velocity.0 /= 2.;
             }
-            attack.duration -= time.delta_seconds();
+            attack_child.0 -= time.delta_seconds();
         } else {
-            command.entity(entity).remove::<Attack>();
+            command.entity(entity).despawn_descendants();
         }
     }
 }
 
-fn animate(mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>, Has<Attack>), With<Player>>) {
-    let (mut animator, direction, _dash, attack) = query.single_mut();
-    if attack {
+fn animate(mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>), With<Player>>,
+    attack: Query<(),With<Attack>>
+) {
+    let (mut animator, direction, _dash) = query.single_mut();
+    if !attack.is_empty() {
         if direction.0.y > 0. {
             animator.set_anim_index(7);
         } else if direction.0.y < 0. {
             animator.set_anim_index(6);
+        } else if direction.0.x > 0.0 {
+            animator.set_anim_index(5);
         } else {
-            if direction.0.x > 0.0 {
-                animator.set_anim_index(5);
-            }
-            animator.set_anim_index(8);
+             animator.set_anim_index(8);
         }
     } else if direction.0.length() > 0. {
         if direction.0.x > 0.0 {
             animator.set_anim_index(4);
+        } else {
+            animator.set_anim_index(2);
         }
-        animator.set_anim_index(2);
     } else {
-        animator.set_anim_index(1);
+        if direction.0.x > 0.0 {
+            animator.set_anim_index(3);
+        } else {
+            animator.set_anim_index(1);
+        }
     }
 }
