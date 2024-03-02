@@ -1,10 +1,6 @@
 // This is the most basic use example from the readme.md
 
-use bevy::{
-    math::vec3,
-    prelude::*,
-    sprite::Anchor,
-};
+use bevy::{math::vec3, prelude::*, sprite::Anchor};
 use bevy_asepritesheet::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_inspector_egui::{
@@ -12,9 +8,10 @@ use bevy_inspector_egui::{
     quick::{ResourceInspectorPlugin, WorldInspectorPlugin},
 };
 use bevy_xpbd_2d::{
-    components::{AngularDamping, Collider, LinearVelocity, RigidBody},
+    components::{Collider, LinearVelocity, LockedAxes, RigidBody, Sensor},
     plugins::{collision::contact_reporting::CollisionStarted, PhysicsDebugPlugin, PhysicsPlugins},
-    resources::Gravity, PhysicsSchedule, PhysicsStepSet,
+    resources::Gravity,
+    PhysicsSchedule, PhysicsStepSet,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -56,6 +53,7 @@ struct AttackBundle {
     attack: Attack,
     transform: Transform,
     collider: Collider,
+    sensor: Sensor,
     duration: Duration,
 }
 
@@ -65,6 +63,7 @@ impl Default for AttackBundle {
             attack: Attack,
             transform: Transform::default(),
             collider: Collider::cuboid(70.0, 70.0),
+            sensor: Sensor,
             duration: Duration(0.45),
         }
     }
@@ -75,12 +74,10 @@ impl AttackBundle {
         Self {
             attack: Attack,
             transform: Transform::from_translation(position),
-            collider: Collider::cuboid(70.0, 70.0),
-            duration: Duration(0.45),
+            ..Default::default()
         }
     }
 }
-
 
 #[derive(Default, Component, Reflect)]
 struct Life(u64);
@@ -94,7 +91,7 @@ struct Player {
 struct PlayerBundle {
     player: Player,
     life: Life,
-    angular_damping: AngularDamping,
+    locked_axes: LockedAxes,
     direction: Direction,
     rigid_body: RigidBody,
     collider: Collider,
@@ -107,13 +104,13 @@ impl PlayerBundle {
             player: Player { speed: Vec2::ZERO },
             life: Life(5),
             direction: Direction(Vec2::ZERO),
-            rigid_body: RigidBody::Kinematic,
-            angular_damping: AngularDamping(100.),
-            collider: Collider::cuboid(70.0, 70.0),
+            rigid_body: RigidBody::Dynamic,
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+            collider: Collider::capsule(15.0, 20.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
                 sprite_bundle: SpriteSheetBundle {
-                    transform: Transform::from_translation(vec3(1., 1., 10.)),
+                    transform: Transform::from_translation(vec3(700., 600., 20.)),
                     ..Default::default()
                 },
                 spritesheet,
@@ -158,6 +155,7 @@ struct Enemy;
 struct EnemyBundle {
     enemy: Enemy,
     rigid_body: RigidBody,
+    locked_axes: LockedAxes,
     collider: Collider,
     animated_sprite_bundle: AnimatedSpriteBundle,
 }
@@ -166,12 +164,13 @@ impl EnemyBundle {
     fn new(spritesheet_handle: Handle<Spritesheet>, position: Vec3) -> Self {
         Self {
             enemy: Enemy,
-            rigid_body: RigidBody::Kinematic,
-            collider: Collider::cuboid(70.0, 70.0),
+            rigid_body: RigidBody::Dynamic,
+            locked_axes: LockedAxes::ROTATION_LOCKED,
+            collider: Collider::capsule(15.0, 20.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(5)),
                 spritesheet: spritesheet_handle,
-                sprite_bundle: SpriteSheetBundle{
+                sprite_bundle: SpriteSheetBundle {
                     transform: Transform::from_translation(position),
                     ..Default::default()
                 },
@@ -190,65 +189,58 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             AsepritesheetPlugin::new(&["json"]),
         ))
-
         // Inspect World
         .add_plugins(WorldInspectorPlugin::default())
-
         // Inspect Configuration
         .register_type::<Configuration>()
         .init_resource::<Configuration>()
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
-
         // Setup Physics
         .add_plugins(PhysicsPlugins::default())
         .insert_resource(Gravity::ZERO)
-
         // Debug Physics
         .add_plugins(PhysicsDebugPlugin::default())
-        
         // Spawn Enemies
         .register_type::<EnemySpawnTimer>()
-        .insert_resource(EnemySpawnTimer(Timer::from_seconds(3.0, TimerMode::Repeating)))
+        .insert_resource(EnemySpawnTimer(Timer::from_seconds(
+            3.0,
+            TimerMode::Repeating,
+        )))
 
         // Load map
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
-
         // Setup game
         .add_systems(Startup, setup)
-
         // Game logic systems
         .add_systems(
             Update,
             (
                 spawn_enemies,
-                enemies_follow_player,
                 animate,
-                attack,
                 damage_enemies,
                 death,
             )
-            .chain(),
+                .chain(),
         )
-
         // Update player position
         .add_systems(
             PhysicsSchedule,
-            (
-                keyboard_input,
-                dash,
-                apply_force,
-            )
-            .chain()
-            .before(PhysicsStepSet::BroadPhase)
+            (keyboard_input, dash, apply_force, attack)
+                .chain()
+                .before(PhysicsStepSet::BroadPhase),
         )
-
         // Follow player position
         .add_systems(
             PhysicsSchedule,
-            following_cam.in_set(PhysicsStepSet::SpatialQuery)
+            (
+                enemies_follow_player,
+                following_cam,
+                camera_fit_inside_current_level,
+            )
+            .chain()
+            .in_set(PhysicsStepSet::SpatialQuery),
         )
-
         .run();
 }
 
@@ -284,7 +276,7 @@ fn spawn_enemies(
         );
 
         // spawn the animated sprite
-        commands.spawn(EnemyBundle::new(enemy_spritesheet, vec3(-350., 370., 10.)));
+        commands.spawn(EnemyBundle::new(enemy_spritesheet, vec3(350., 970., 10.)));
     }
 }
 
@@ -349,7 +341,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     //spawn map
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("map.ldtk"),
-        transform: Transform::default().with_translation(vec3(-700., -600., -1.)),
+        transform: Transform::from_translation(vec3(0., 0., -1.)),
         ..Default::default()
     });
 
@@ -411,6 +403,75 @@ fn following_cam(
     mut cam: Query<&mut Transform, (With<Camera>, Without<Player>)>,
 ) {
     cam.single_mut().translation = player.single().translation;
+}
+ #[allow(clippy::type_complexity)]
+fn camera_fit_inside_current_level(
+    mut camera_query: Query<
+        (
+            &mut bevy::render::camera::OrthographicProjection,
+            &mut Transform,
+        ),
+        Without<Player>,
+    >,
+    window_query: Query<&Window>,
+    player_query: Query<&Transform, With<Player>>,
+    level_query: Query<(&Transform, &LevelIid), (Without<OrthographicProjection>, Without<Player>)>,
+    ldtk_projects: Query<&Handle<LdtkProject>>,
+    level_selection: Res<LevelSelection>,
+    ldtk_project_assets: Res<Assets<LdtkProject>>,
+) {
+    let Ok(Transform {
+        translation: player_translation,
+        ..
+    }) = player_query.get_single() else {
+        return;
+    };
+
+    let window = window_query.single();
+    let aspect_ratio = window.resolution.width() / window.resolution.height();
+
+    let player_translation = *player_translation;
+
+    let (mut orthographic_projection, mut camera_transform) = camera_query.single_mut();
+
+    for (level_transform, level_iid) in &level_query {
+        let ldtk_project = ldtk_project_assets
+            .get(ldtk_projects.single())
+            .expect("Project should be loaded if level has spawned");
+
+        let level = ldtk_project
+            .get_raw_level_by_iid(&level_iid.to_string())
+            .expect("Spawned level should exist in LDtk project");
+
+        if level_selection.is_match(&LevelIndices::default(), level) {
+            let level_ratio = level.px_wid as f32 / level.px_hei as f32;
+            orthographic_projection.viewport_origin = Vec2::ZERO;
+            if level_ratio > aspect_ratio {
+                // level is wider than the screen
+                let height = (level.px_hei as f32 / 9.).round() * 9.;
+                let width = height * aspect_ratio;
+                orthographic_projection.scaling_mode =
+                    bevy::render::camera::ScalingMode::Fixed { width, height };
+                camera_transform.translation.x =
+                    (player_translation.x - level_transform.translation.x - width / 2.)
+                        .clamp(0., level.px_wid as f32 - width);
+                camera_transform.translation.y = 0.;
+            } else {
+                // level is taller than the screen
+                let width = (level.px_wid as f32 / 16.).round() * 16.;
+                let height = width / aspect_ratio;
+                orthographic_projection.scaling_mode =
+                    bevy::render::camera::ScalingMode::Fixed { width, height };
+                camera_transform.translation.y =
+                    (player_translation.y - level_transform.translation.y - height / 2.)
+                        .clamp(0., level.px_hei as f32 - height);
+                camera_transform.translation.x = 0.;
+            }
+
+            camera_transform.translation.x += level_transform.translation.x;
+            camera_transform.translation.y += level_transform.translation.y;
+        }
+    }
 }
 
 fn keyboard_input(
