@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.13.0", features = ["wayland", "dynamic_linking"] }
+bevy-inspector-egui = { version = "0.23.2", features = ["highlight_changes"] }
+bevy_asepritesheet = "0.6.0"
 bevy_cursor = { version = "0.3.0", features = ["2d"] }
 bevy_xpbd_2d = "0.4.2"
 
