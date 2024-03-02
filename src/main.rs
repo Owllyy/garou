@@ -2,15 +2,13 @@
 
 use bevy_ecs_ldtk::prelude::*;
 use bevy::{
-    prelude::*,
-    sprite::Anchor,
+    math::vec3, prelude::*, sprite::Anchor
 };
 use bevy_asepritesheet::prelude::*;
-use bevy_cursor::{CursorLocation, TrackCursorPlugin};
 use bevy_inspector_egui::{prelude::*, quick::ResourceInspectorPlugin};
 use bevy_xpbd_2d::{
-    components::{AngularDamping, LinearVelocity, RigidBody},
-    plugins::{collision::Collider, PhysicsPlugins, PhysicsDebugPlugin},
+    components::{AngularDamping, LinearVelocity, RigidBody, Collider},
+    plugins::{PhysicsPlugins, PhysicsDebugPlugin},
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -62,7 +60,7 @@ impl PlayerBundle {
             direction: Direction(Vec2::default()),
             angular_damping: AngularDamping(100.),
             rigid_body: RigidBody::Dynamic,
-            collider: Collider::rectangle(70.0, 70.0),
+            collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
                 spritesheet: spritesheet_handle,
@@ -86,7 +84,6 @@ fn main() {
     App::new()
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
-            TrackCursorPlugin,
             AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
@@ -97,7 +94,8 @@ fn main() {
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(LdtkPlugin)
-        .add_systems(Update, (keyboard_input, dash, apply_force))
+        .insert_resource(LevelSelection::index(0))
+        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam))
         .run();
 }
 
@@ -128,7 +126,8 @@ fn setup(
 
     //spawn map
     commands.spawn(LdtkWorldBundle {
-        ldtk_handle: asset_server.load("my_project.ldtk"),
+        ldtk_handle: asset_server.load("map.ldtk"),
+        transform: Transform::default().with_translation(vec3(0., 0., -1.)),
         ..Default::default()
     });
 
@@ -145,7 +144,7 @@ fn setup(
         ),
         AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
-            spritesheet: sheet_handle,
+            spritesheet,
             ..Default::default()
         },
     ));
@@ -165,7 +164,7 @@ struct Dash {
 fn dash(
     time: Res<Time>,
     configuration: Res<Configuration>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input: Res<Input<KeyCode>>,
     mut command: Commands,
     mut query: Query<(Entity, &Direction, Option<&mut Dash>)>,
 ) {
@@ -201,24 +200,29 @@ fn dash(
     }
 }
 
+fn following_cam(player: Query<&Transform, With<Player>>,
+    mut cam: Query<&mut Transform, (With<Camera>, Without<Player>)>) {
+    cam.single_mut().translation = player.single().translation;
+}
+
 fn keyboard_input(
     time: Res<Time>,
     configurition: Res<Configuration>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<(&mut Player, &mut Direction)>,
 ) {
     for (mut player, mut direction) in &mut query {
         direction.0 = Vec2::ZERO;
-        if keyboard_input.pressed(KeyCode::KeyA) {
+        if keyboard_input.pressed(KeyCode::A) {
             direction.0.x -= 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyD) {
+        if keyboard_input.pressed(KeyCode::D) {
             direction.0.x += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyW) {
+        if keyboard_input.pressed(KeyCode::W) {
             direction.0.y += 1.0;
         }
-        if keyboard_input.pressed(KeyCode::KeyS) {
+        if keyboard_input.pressed(KeyCode::S) {
             direction.0.y -= 1.0;
         }
 
@@ -242,9 +246,10 @@ fn keyboard_input(
     }
 }
 
-fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, Option<&Dash>)>) {
-    for (player, mut velocity, dash) in &mut query {
+fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, &mut Transform, Option<&Dash>)>) {
+    for (player, mut velocity, mut transform, dash) in &mut query {
         velocity.0 = player.speed;
+        transform.translation.z = 10.;
         if let Some(dash) = dash {
             velocity.0 += dash.speed;
         }
