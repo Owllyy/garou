@@ -5,11 +5,11 @@ use bevy::{
     sprite::Anchor,
 };
 use bevy_asepritesheet::prelude::*;
-use bevy_cursor::{CursorLocation, TrackCursorPlugin};
-use bevy_inspector_egui::{prelude::*, quick::ResourceInspectorPlugin};
+use bevy_cursor::TrackCursorPlugin;
+use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
-    components::{AngularDamping, LinearVelocity, RigidBody},
-    plugins::{collision::Collider, PhysicsPlugins, PhysicsDebugPlugin},
+    components::{LinearVelocity, RigidBody},
+    plugins::{collision::Collider, PhysicsPlugins, PhysicsDebugPlugin}, resources::Gravity,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -47,19 +47,16 @@ struct Player {
 struct PlayerBundle {
     player: Player,
     direction: Direction,
-    angular_damping: AngularDamping,
     rigid_body: RigidBody,
     collider: Collider,
     animated_sprite_bundle: AnimatedSpriteBundle,
-
 }
 
 impl PlayerBundle {
     fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
         Self {
             player: Player { speed: Vec2::ZERO },
-            direction: Direction(Vec2::default()),
-            angular_damping: AngularDamping(100.),
+            direction: Direction(Vec2::ZERO),
             rigid_body: RigidBody::Dynamic,
             collider: Collider::rectangle(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
@@ -76,6 +73,25 @@ struct Enemy;
 
 #[derive(Bundle)]
 struct EnemyBundle {
+    enemy: Enemy,
+    rigid_body: RigidBody,
+    collider: Collider,
+    animated_sprite_bundle: AnimatedSpriteBundle,
+}
+
+impl EnemyBundle {
+    fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
+        Self {
+            enemy: Enemy,
+            rigid_body: RigidBody::Dynamic,
+            collider: Collider::rectangle(70.0, 70.0),
+            animated_sprite_bundle: AnimatedSpriteBundle {
+                animator: SpriteAnimator::from_anim(AnimHandle::from_index(5)),
+                spritesheet: spritesheet_handle,
+                ..Default::default()
+            },
+        }
+    }
 }
 
 #[derive(Resource, Reflect, Deref, DerefMut)]
@@ -89,26 +105,40 @@ fn main() {
             AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
-        .register_type::<EnemySpawnTimer>()
-        .register_type::<Configuration>() // you need to register your type to display it
-        .insert_resource(EnemySpawnTimer(Timer::from_seconds(1.0, TimerMode::Repeating)))
-        .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
-        .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin::default())
+        .add_plugins(WorldInspectorPlugin::default())
+        .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
+        .register_type::<EnemySpawnTimer>()
+        .register_type::<Configuration>() // you need to register your type to display it
+        .insert_resource(EnemySpawnTimer(Timer::from_seconds(3.0, TimerMode::Once)))
+        .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
+        .insert_resource(Gravity::ZERO)
         // .add_systems(Startup, setup_aesprites)
         .add_systems(Update, (keyboard_input, dash, apply_force))
+        .add_systems(Update, spawn_enemies)
         .run();
 }
 
 
 fn spawn_enemies(
+    time: Res<Time>,
     mut commands: Commands,
-    spawn_timer: Res<EnemySpawnTimer>,
+    mut spawn_timer: ResMut<EnemySpawnTimer>,
+    asset_server: Res<AssetServer>,
 ) {
-    for _ in 0..spawn_timer.0.times_finished_this_tick() {
-    }
+    for _ in 0..spawn_timer.tick(time.delta()).times_finished_this_tick() {
+        // load the spritesheet and get it's handle
+        let enemy_spritesheet = load_spritesheet(
+            &mut commands,
+            &asset_server,
+            "Tiny Swords/Factions/Knights/Troops/Pawn/Blue/Pawn_Blue.json",
+            Anchor::Center,
+        );
 
+        // spawn the animated sprite
+        commands.spawn(EnemyBundle::new(enemy_spritesheet));
+    }
 }
 
 fn setup(
@@ -119,7 +149,7 @@ fn setup(
     commands.spawn(Camera2dBundle::default());
 
     // load the spritesheet and get it's handle
-    let spritesheet = load_spritesheet(
+    let player_spritesheet = load_spritesheet(
         &mut commands,
         &asset_server,
         "Tiny Swords/Factions/Goblins/Troops/Torch/Red/Torch_Red.json",
@@ -127,7 +157,7 @@ fn setup(
     );
 
     // spawn the animated sprite
-    commands.spawn(PlayerBundle::new(spritesheet));
+    commands.spawn(PlayerBundle::new(player_spritesheet));
 }
 
 
