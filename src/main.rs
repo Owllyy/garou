@@ -1,10 +1,16 @@
 // This is the most basic use example from the readme.md
 
-use bevy::{prelude::*, sprite::Anchor};
+use bevy::{
+    prelude::*,
+    sprite::Anchor,
+};
 use bevy_asepritesheet::prelude::*;
 use bevy_cursor::{CursorLocation, TrackCursorPlugin};
 use bevy_inspector_egui::{prelude::*, quick::ResourceInspectorPlugin};
-use bevy_xpbd_2d::components::LinearVelocity;
+use bevy_xpbd_2d::{
+    components::{AngularDamping, LinearVelocity, RigidBody},
+    plugins::{collision::Collider, PhysicsPlugins},
+};
 
 #[derive(Reflect, Resource, InspectorOptions)]
 #[reflect(Resource, InspectorOptions)]
@@ -30,10 +36,9 @@ impl Default for Configuration {
     }
 }
 
-#[derive(Reflect, Component)]
+#[derive(Default, Component, Reflect)]
 struct Player {
     speed: Vec2,
-    dash_speed: Vec2,
 }
 
 fn main() {
@@ -47,17 +52,19 @@ fn main() {
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .register_type::<Configuration>() // you need to register your type to display it
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
-        .add_systems(Startup, setup_aesprites)
-        .add_systems(Update, (
-            keyboard_input_system,
-            look_cursor,
-            dash,
-            apply_force,
-        ))
+        .add_plugins(PhysicsPlugins::default())
+        // .add_systems(Startup, setup_aesprites)
+        .add_systems(Update, (keyboard_input, look_cursor, dash, apply_force))
         .run();
 }
 
-fn setup_aesprites( mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    // spawn the camera so we can see the sprite
+    commands.spawn(Camera2dBundle::default());
+
     // load the spritesheet and get it's handle
     let sheet_handle = load_spritesheet(
         &mut commands,
@@ -67,16 +74,22 @@ fn setup_aesprites( mut commands: Commands, asset_server: Res<AssetServer>) {
     );
 
     // spawn the animated sprite
-    commands.spawn(AnimatedSpriteBundle {
-        animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
-        spritesheet: sheet_handle,
-        ..Default::default()
-    });
-}
-
-fn setup(mut commands: Commands) {
-    // spawn the camera so we can see the sprite
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((
+        Player { speed: Vec2::ZERO },
+        Direction(Vec2::default()),
+        AngularDamping(100.),
+        RigidBody::Dynamic,
+        Collider::triangle(
+            Vec2::new(-0.5, -0.5),
+            Vec2::new(0.5, 0.0),
+            Vec2::new(-0.5, 0.5),
+        ),
+        AnimatedSpriteBundle {
+            animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
+            spritesheet: sheet_handle,
+            ..Default::default()
+        },
+    ));
 }
 
 #[derive(Default, Component, Reflect)]
@@ -128,7 +141,7 @@ fn dash(
     }
 }
 
-fn keyboard_input_system(
+fn keyboard_input(
     time: Res<Time>,
     configurition: Res<Configuration>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
