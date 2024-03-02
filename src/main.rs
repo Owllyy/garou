@@ -7,7 +7,7 @@ use bevy::{
 use bevy_asepritesheet::prelude::*;
 use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
-    components::{AngularDamping, Collider, Inertia, LinearDamping, LinearVelocity, Mass, RigidBody},
+    components::{AngularDamping, Collider, LinearVelocity, RigidBody},
     plugins::{PhysicsDebugPlugin, PhysicsPlugins}, resources::Gravity,
 };
 
@@ -21,6 +21,7 @@ struct Configuration {
     dash_deceleration: f32,
     dash_duration: f32,
     dash_cooldown: f32,
+    pawn_speed: f32,
 }
 
 impl Default for Configuration {
@@ -33,6 +34,7 @@ impl Default for Configuration {
             dash_deceleration: 10000.0,
             dash_duration: 0.1,
             dash_cooldown: 1.0,
+            pawn_speed: 400.0,
         }
     }
 }
@@ -100,11 +102,15 @@ impl EnemyBundle {
     fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
         Self {
             enemy: Enemy,
-            rigid_body: RigidBody::Dynamic,
+            rigid_body: RigidBody::Kinematic,
             collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(5)),
                 spritesheet: spritesheet_handle,
+                sprite_bundle: SpriteSheetBundle{
+                    transform: Transform::from_translation(vec3(1., 1., 10.)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         }
@@ -132,9 +138,26 @@ fn main() {
         .insert_resource(LevelSelection::index(0))
         .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, animate, attack))
         .add_systems(Update, spawn_enemies)
+        .add_systems(Update, enemies_follow_player)
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin::default())
         .run();
+}
+
+fn enemies_follow_player(
+    configuration: Res<Configuration>,
+    player: Query<&mut Transform, (With<Player>, Without<Enemy>)>,
+    mut enemies: Query<(&mut LinearVelocity, &Transform), With<Enemy>>,
+) {
+    let player = player.single();
+    for (mut velocity, transform) in &mut enemies {
+        let gap = (player.translation - transform.translation).xy();
+        if gap.length() > 10.0 {
+            velocity.0 = gap.normalize() * configuration.pawn_speed;
+        } else {
+            velocity.0 = Vec2::ZERO;
+        }
+    }
 }
 
 fn spawn_enemies(
@@ -311,8 +334,8 @@ time: Res<Time>)
     }
 }
 
-fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&mut Transform, Has<Dash>, Has<Attack>), With<Player>>) {
-    let (mut animator, direction, mut transform, _dash, attack) = query.single_mut();
+fn animate(mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>, Has<Attack>), With<Player>>) {
+    let (mut animator, direction, _dash, attack) = query.single_mut();
     if attack {
         if direction.0.y > 0. {
             animator.set_anim_index(5);
