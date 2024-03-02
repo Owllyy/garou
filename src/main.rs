@@ -7,8 +7,8 @@ use bevy::{
 use bevy_asepritesheet::prelude::*;
 use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
-    components::{LinearVelocity, RigidBody, Collider},
-    plugins::{PhysicsPlugins, PhysicsDebugPlugin}, resources::Gravity,
+    components::{AngularDamping, Collider, LinearDamping, LinearVelocity, RigidBody},
+    plugins::{PhysicsDebugPlugin, PhysicsPlugins},
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -245,9 +245,9 @@ fn keyboard_input(
     configurition: Res<Configuration>,
     mut command: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(Entity, &mut Player, &mut Direction, &mut Transform)>,
+    mut query: Query<(Entity, &mut Player, &mut Direction, &mut Transform, Option<&Attack>)>,
 ) {
-    for (entity, mut player, mut direction, mut transform) in &mut query {
+    for (entity, mut player, mut direction, mut transform, attack) in &mut query {
         direction.0 = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::Left) {
             direction.0.x -= 1.0;
@@ -285,7 +285,7 @@ fn keyboard_input(
             player.speed = player.speed.normalize_or_zero() * configurition.max_speed;
         }
 
-        if keyboard_input.pressed(KeyCode::K) {
+        if keyboard_input.pressed(KeyCode::K) && attack.is_none() {
             command.entity(entity).insert(Attack::default());
         }
     }
@@ -300,13 +300,16 @@ fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, Option<&Dash>
     }
 }
 
-fn attack(mut query: Query<(Entity, Option<&mut Attack>), With<Player>>,
+fn attack(mut query: Query<(Entity, Option<&mut LinearVelocity>, Option<&mut Attack>), With<Player>>,
 mut command: Commands,
 time: Res<Time>) 
 {
-    let (entity, attack) = query.single_mut();
+    let (entity, velocity, attack) = query.single_mut();
     if let Some(mut attack) = attack {
         if attack.duration > 0. {
+            if let Some(mut velocity) = velocity {
+                velocity.0 /= 2.;
+            }
             attack.duration -= time.delta_seconds();
         } else {
             command.entity(entity).remove::<Attack>();
@@ -314,10 +317,16 @@ time: Res<Time>)
     }
 }
 
-fn animate(mut query: Query<(&Player, &mut SpriteAnimator, &Direction ,&Transform, Has<Dash>, Has<Attack>)>) {
-    let (_player, mut animator, direction,_transformm, _dash, attack) = query.single_mut();
+fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&Transform, Has<Dash>, Has<Attack>), With<Player>>) {
+    let (mut animator, direction, _transform, _dash, attack) = query.single_mut();
     if attack {
-        animator.set_anim_index(3);
+        if direction.0.y > 0. {
+            animator.set_anim_index(5);
+        } else if direction.0.y < 0. {
+            animator.set_anim_index(4);
+        } else {
+            animator.set_anim_index(3);
+        }
     } else if direction.0.length() > 0. {
         animator.set_anim_index(2);
     } else {
