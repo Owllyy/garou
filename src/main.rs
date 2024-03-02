@@ -1,14 +1,20 @@
 // This is the most basic use example from the readme.md
 
-use bevy_ecs_ldtk::prelude::*;
 use bevy::{
-    ecs::{query, system::adapter::new}, math::vec3, prelude::*, sprite::Anchor, time::Stopwatch
+    math::vec3,
+    prelude::*,
+    sprite::Anchor,
 };
 use bevy_asepritesheet::prelude::*;
-use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
+use bevy_ecs_ldtk::prelude::*;
+use bevy_inspector_egui::{
+    prelude::*,
+    quick::{ResourceInspectorPlugin, WorldInspectorPlugin},
+};
 use bevy_xpbd_2d::{
     components::{AngularDamping, Collider, LinearVelocity, RigidBody},
-    plugins::{collision::contact_reporting::CollisionStarted, PhysicsDebugPlugin, PhysicsPlugins}, resources::Gravity,
+    plugins::{collision::contact_reporting::CollisionStarted, PhysicsDebugPlugin, PhysicsPlugins},
+    resources::Gravity, PhysicsSchedule, PhysicsStepSet,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -34,11 +40,10 @@ impl Default for Configuration {
             dash_deceleration: 10000.0,
             dash_duration: 0.1,
             dash_cooldown: 1.0,
-            pawn_speed: 400.0,
+            pawn_speed: 300.0,
         }
     }
 }
-
 
 #[derive(Component, Reflect)]
 struct Attack;
@@ -56,13 +61,23 @@ struct AttackBundle {
 
 impl Default for AttackBundle {
     fn default() -> Self {
-        Self { attack: Attack, transform: Transform::default(), collider: Collider::cuboid(70.0, 70.0), duration: Duration(0.45) }
+        Self {
+            attack: Attack,
+            transform: Transform::default(),
+            collider: Collider::cuboid(70.0, 70.0),
+            duration: Duration(0.45),
+        }
     }
 }
 
 impl AttackBundle {
     fn new(position: Vec3) -> Self {
-        Self { attack: Attack, transform: Transform::from_translation(position), collider: Collider::cuboid(70.0, 70.0), duration: Duration(0.45) }
+        Self {
+            attack: Attack,
+            transform: Transform::from_translation(position),
+            collider: Collider::cuboid(70.0, 70.0),
+            duration: Duration(0.45),
+        }
     }
 }
 
@@ -97,7 +112,7 @@ impl PlayerBundle {
             collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
-                sprite_bundle: SpriteSheetBundle{
+                sprite_bundle: SpriteSheetBundle {
                     transform: Transform::from_translation(vec3(1., 1., 10.)),
                     ..Default::default()
                 },
@@ -126,7 +141,7 @@ impl DeadBundle {
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(0)),
                 spritesheet: spritesheet_handle,
-                sprite_bundle: SpriteSheetBundle{
+                sprite_bundle: SpriteSheetBundle {
                     transform: Transform::from_translation(position),
                     ..Default::default()
                 },
@@ -175,21 +190,65 @@ fn main() {
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             AsepritesheetPlugin::new(&["json"]),
         ))
-        .add_systems(Startup, setup)
+
+        // Inspect World
         .add_plugins(WorldInspectorPlugin::default())
+
+        // Inspect Configuration
+        .register_type::<Configuration>()
+        .init_resource::<Configuration>()
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
-        .register_type::<EnemySpawnTimer>()
-        .register_type::<Configuration>() // you need to register your type to display it
-        .insert_resource(EnemySpawnTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
-        .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
+
+        // Setup Physics
+        .add_plugins(PhysicsPlugins::default())
         .insert_resource(Gravity::ZERO)
+
+        // Debug Physics
+        .add_plugins(PhysicsDebugPlugin::default())
+        
+        // Spawn Enemies
+        .register_type::<EnemySpawnTimer>()
+        .insert_resource(EnemySpawnTimer(Timer::from_seconds(3.0, TimerMode::Repeating)))
+
+        // Load map
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
-        .add_systems(Update, (spawn_enemies, animate))
-        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, attack, damage_enemies, death))
-        .add_systems(Update, enemies_follow_player)
-        .add_plugins(PhysicsPlugins::default())
-        .add_plugins(PhysicsDebugPlugin::default())
+
+        // Setup game
+        .add_systems(Startup, setup)
+
+        // Game logic systems
+        .add_systems(
+            Update,
+            (
+                spawn_enemies,
+                enemies_follow_player,
+                animate,
+                attack,
+                damage_enemies,
+                death,
+            )
+            .chain(),
+        )
+
+        // Update player position
+        .add_systems(
+            PhysicsSchedule,
+            (
+                keyboard_input,
+                dash,
+                apply_force,
+            )
+            .chain()
+            .before(PhysicsStepSet::BroadPhase)
+        )
+
+        // Follow player position
+        .add_systems(
+            PhysicsSchedule,
+            following_cam.in_set(PhysicsStepSet::SpatialQuery)
+        )
+
         .run();
 }
 
@@ -232,8 +291,8 @@ fn spawn_enemies(
 fn death(
     time: Res<Time>,
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Duration), With<Dead>>)
-{
+    mut query: Query<(Entity, &mut Duration), With<Dead>>,
+) {
     for (entity, mut dead) in query.iter_mut() {
         if dead.0 > 0. {
             dead.0 -= time.delta_seconds();
@@ -246,39 +305,36 @@ fn death(
 fn damage_enemies(
     mut commands: Commands,
     enemy: Query<(Entity, &Transform), With<Enemy>>,
-    attack: Query<(Entity), With<Attack>>,
+    attack: Query<Entity, With<Attack>>,
     asset: Res<AssetServer>,
-    mut collision_event_reader: EventReader<CollisionStarted>) {
-        
-        for &CollisionStarted(e1, e2) in collision_event_reader.read() {
-            if enemy.get(e1).is_ok() && attack.get(e2).is_ok() {
-                let dead_spritesheet = load_spritesheet(
-                &mut commands,
-                &asset,
-                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
-                Anchor::Center,
-                );
-                let (_entity, position) = enemy.get(e1).unwrap();
-                commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
-                commands.entity(e1).despawn();
-            } else if enemy.get(e2).is_ok() && attack.get(e1).is_ok() {
-                let dead_spritesheet = load_spritesheet(
-                &mut commands,
-                &asset,
-                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
-                Anchor::Center,
-                );
-                let (_entity, position) = enemy.get(e2).unwrap();
-                commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
-                commands.entity(e2).despawn();
-            }
-        }
-    } 
-
-fn setup(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
+    mut collision_event_reader: EventReader<CollisionStarted>,
 ) {
+    for &CollisionStarted(e1, e2) in collision_event_reader.read() {
+        if enemy.get(e1).is_ok() && attack.get(e2).is_ok() {
+            let dead_spritesheet = load_spritesheet(
+                &mut commands,
+                &asset,
+                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
+                Anchor::Center,
+            );
+            let (_entity, position) = enemy.get(e1).unwrap();
+            commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
+            commands.entity(e1).despawn();
+        } else if enemy.get(e2).is_ok() && attack.get(e1).is_ok() {
+            let dead_spritesheet = load_spritesheet(
+                &mut commands,
+                &asset,
+                "Tiny Swords/Factions/Knights/Troops/Dead/Dead.json",
+                Anchor::Center,
+            );
+            let (_entity, position) = enemy.get(e2).unwrap();
+            commands.spawn(DeadBundle::new(dead_spritesheet, position.translation));
+            commands.entity(e2).despawn();
+        }
+    }
+}
+
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // spawn the camera so we can see the sprite
     commands.spawn(Camera2dBundle::default());
 
@@ -300,7 +356,6 @@ fn setup(
     // spawn the animated sprite
     commands.spawn(PlayerBundle::new(player_spritesheet));
 }
-
 
 #[derive(Default, Component)]
 struct Direction(Vec2);
@@ -330,7 +385,7 @@ fn dash(
             if dash.duration > 0.0 {
                 dash.duration -= time.delta_seconds();
             } else {
-                if dash.speed.length() > 0.{
+                if dash.speed.length() > 0. {
                     let force = dash.speed.normalize_or_zero()
                         * configuration.dash_deceleration
                         * time.delta_seconds();
@@ -353,7 +408,7 @@ fn dash(
 
 fn following_cam(
     player: Query<&Transform, With<Player>>,
-    mut cam: Query<&mut Transform, (With<Camera>, Without<Player>)>
+    mut cam: Query<&mut Transform, (With<Camera>, Without<Player>)>,
 ) {
     cam.single_mut().translation = player.single().translation;
 }
@@ -399,7 +454,9 @@ fn keyboard_input(
         }
 
         if keyboard_input.pressed(KeyCode::K) && existing_attack.get_single().is_err() {
-            let new_attack = command.spawn(AttackBundle::new(direction.0.extend(0.) * 50.)).id();
+            let new_attack = command
+                .spawn(AttackBundle::new(direction.0.extend(0.) * 50.))
+                .id();
             command.entity(entity).add_child(new_attack);
         }
     }
@@ -414,16 +471,16 @@ fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, Option<&Dash>
     }
 }
 
-fn attack(mut query: Query<(Entity, Option<&mut LinearVelocity>, &Children), With<Player>>,
-mut attack: Query<&mut Duration, (With<Attack>, Without<Player>)>,
-mut command: Commands,
-time: Res<Time>) 
-{
-
+fn attack(
+    mut query: Query<(Entity, Option<&mut LinearVelocity>, &Children), With<Player>>,
+    mut attack: Query<&mut Duration, (With<Attack>, Without<Player>)>,
+    mut command: Commands,
+    time: Res<Time>,
+) {
     let Ok((entity, velocity, children)) = query.get_single_mut() else {
         return;
     };
-    if let Some(& child) = children.get(0) {
+    if let Some(&child) = children.get(0) {
         let mut attack_child = attack.get_mut(child).unwrap();
         if attack_child.0 > 0. {
             if let Some(mut velocity) = velocity {
@@ -436,8 +493,9 @@ time: Res<Time>)
     }
 }
 
-fn animate(mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>), With<Player>>,
-    attack: Query<(),With<Attack>>
+fn animate(
+    mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>), With<Player>>,
+    attack: Query<(), With<Attack>>,
 ) {
     let (mut animator, direction, _dash) = query.single_mut();
     if !attack.is_empty() {
@@ -448,7 +506,7 @@ fn animate(mut query: Query<(&mut SpriteAnimator, &Direction, Has<Dash>), With<P
         } else if direction.0.x > 0.0 {
             animator.set_anim_index(5);
         } else {
-             animator.set_anim_index(8);
+            animator.set_anim_index(8);
         }
     } else if direction.0.length() > 0. {
         if direction.0.x > 0.0 {
