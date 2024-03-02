@@ -4,7 +4,7 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy::{
     math::vec3, prelude::*, sprite::Anchor
 };
-use bevy_asepritesheet::prelude::*;
+use bevy_asepritesheet::{animator, prelude::*};
 use bevy_inspector_egui::{prelude::*, quick::ResourceInspectorPlugin};
 use bevy_xpbd_2d::{
     components::{AngularDamping, LinearVelocity, RigidBody, Collider},
@@ -144,6 +144,10 @@ fn setup(
         ),
         AnimatedSpriteBundle {
             animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
+            sprite_bundle: SpriteSheetBundle{
+                transform: Transform::from_translation(vec3(1., 1., 10.)),
+                ..Default::default()
+            },
             spritesheet,
             ..Default::default()
         },
@@ -209,9 +213,9 @@ fn keyboard_input(
     time: Res<Time>,
     configurition: Res<Configuration>,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(&mut Player, &mut Direction)>,
+    mut query: Query<(&mut Player, &mut Direction, &mut SpriteAnimator)>,
 ) {
-    for (mut player, mut direction) in &mut query {
+    for (mut player, mut direction, mut animator) in &mut query {
         direction.0 = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::A) {
             direction.0.x -= 1.0;
@@ -227,9 +231,11 @@ fn keyboard_input(
         }
 
         if direction.0 != Vec2::ZERO {
+            animator.set_anim_index(2);
             player.speed +=
                 direction.0.normalize_or_zero() * configurition.acceleration * time.delta_seconds();
         } else {
+            animator.set_anim_index(1);
             let force = player.speed.normalize_or_zero()
                 * configurition.decceleration
                 * time.delta_seconds();
@@ -239,7 +245,6 @@ fn keyboard_input(
                 player.speed -= force;
             }
         }
-
         if player.speed.length() > configurition.max_speed {
             player.speed = player.speed.normalize_or_zero() * configurition.max_speed;
         }
@@ -249,7 +254,6 @@ fn keyboard_input(
 fn apply_force(mut query: Query<(&mut Player, &mut LinearVelocity, &mut Transform, Option<&Dash>)>) {
     for (player, mut velocity, mut transform, dash) in &mut query {
         velocity.0 = player.speed;
-        transform.translation.z = 10.;
         if let Some(dash) = dash {
             velocity.0 += dash.speed;
         }
