@@ -7,8 +7,8 @@ use bevy::{
 use bevy_asepritesheet::prelude::*;
 use bevy_inspector_egui::{prelude::*, quick::{ResourceInspectorPlugin, WorldInspectorPlugin}};
 use bevy_xpbd_2d::{
-    components::{AngularDamping, Collider, LinearDamping, LinearVelocity, RigidBody},
-    plugins::{PhysicsDebugPlugin, PhysicsPlugins},
+    components::{AngularDamping, Collider, Inertia, LinearDamping, LinearVelocity, Mass, RigidBody},
+    plugins::{PhysicsDebugPlugin, PhysicsPlugins}, resources::Gravity,
 };
 
 #[derive(Reflect, Resource, InspectorOptions)]
@@ -57,6 +57,7 @@ struct Player {
 #[derive(Bundle)]
 struct PlayerBundle {
     player: Player,
+    angular_damping: AngularDamping,
     direction: Direction,
     rigid_body: RigidBody,
     collider: Collider,
@@ -68,7 +69,8 @@ impl PlayerBundle {
         Self {
             player: Player { speed: Vec2::ZERO },
             direction: Direction(Vec2::ZERO),
-            rigid_body: RigidBody::Dynamic,
+            rigid_body: RigidBody::Kinematic,
+            angular_damping: AngularDamping(100.),
             collider: Collider::cuboid(70.0, 70.0),
             animated_sprite_bundle: AnimatedSpriteBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(1)),
@@ -119,8 +121,6 @@ fn main() {
             AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
-        .add_plugins(PhysicsPlugins::default())
-        .add_plugins(PhysicsDebugPlugin::default())
         .add_plugins(WorldInspectorPlugin::default())
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .register_type::<EnemySpawnTimer>()
@@ -128,12 +128,12 @@ fn main() {
         .insert_resource(EnemySpawnTimer(Timer::from_seconds(3.0, TimerMode::Once)))
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .insert_resource(Gravity::ZERO)
-        // .add_systems(Startup, setup_aesprites)
-        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam))
-        .add_systems(Update, spawn_enemies)
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
         .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, animate, attack))
+        .add_systems(Update, spawn_enemies)
+        .add_plugins(PhysicsPlugins::default())
+        .add_plugins(PhysicsDebugPlugin::default())
         .run();
 }
 
@@ -245,20 +245,14 @@ fn keyboard_input(
     configurition: Res<Configuration>,
     mut command: Commands,
     keyboard_input: Res<Input<KeyCode>>,
-    mut query: Query<(Entity, &mut Player, &mut Direction, &mut Transform, Option<&Attack>)>,
+    mut query: Query<(Entity, &mut Player, &mut Direction, Option<&Attack>)>,
 ) {
-    for (entity, mut player, mut direction, mut transform, attack) in &mut query {
+    for (entity, mut player, mut direction, attack) in &mut query {
         direction.0 = Vec2::ZERO;
         if keyboard_input.pressed(KeyCode::Left) {
             direction.0.x -= 1.0;
-            if transform.scale.x > 0. {
-                transform.scale.x *= -1.;
-            }
         }
         if keyboard_input.pressed(KeyCode::Right) {
-            if transform.scale.x < 0. {
-                transform.scale.x *= -1.;
-            }
             direction.0.x += 1.0;
         }
         if keyboard_input.pressed(KeyCode::Up) {
@@ -317,8 +311,8 @@ time: Res<Time>)
     }
 }
 
-fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&Transform, Has<Dash>, Has<Attack>), With<Player>>) {
-    let (mut animator, direction, _transform, _dash, attack) = query.single_mut();
+fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&mut Transform, Has<Dash>, Has<Attack>), With<Player>>) {
+    let (mut animator, direction, mut transform, _dash, attack) = query.single_mut();
     if attack {
         if direction.0.y > 0. {
             animator.set_anim_index(5);
@@ -328,6 +322,9 @@ fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&Transform, Has<Da
             animator.set_anim_index(3);
         }
     } else if direction.0.length() > 0. {
+        if direction.0.x < 0. {
+        } else {
+        }
         animator.set_anim_index(2);
     } else {
         animator.set_anim_index(1);
