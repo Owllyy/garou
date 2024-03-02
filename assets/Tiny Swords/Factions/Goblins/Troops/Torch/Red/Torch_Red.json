@@ -1,0 +1,333 @@
+{ "frames": [
+   {
+    "filename": "Torch_Red 0.aseprite",
+    "frame": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 1.aseprite",
+    "frame": { "x": 192, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 2.aseprite",
+    "frame": { "x": 384, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 3.aseprite",
+    "frame": { "x": 576, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 4.aseprite",
+    "frame": { "x": 768, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 5.aseprite",
+    "frame": { "x": 960, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 6.aseprite",
+    "frame": { "x": 1152, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 7.aseprite",
+    "frame": { "x": 1344, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 8.aseprite",
+    "frame": { "x": 1536, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 9.aseprite",
+    "frame": { "x": 1728, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 10.aseprite",
+    "frame": { "x": 1920, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 11.aseprite",
+    "frame": { "x": 2112, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 12.aseprite",
+    "frame": { "x": 2304, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 13.aseprite",
+    "frame": { "x": 2496, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 14.aseprite",
+    "frame": { "x": 2688, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 15.aseprite",
+    "frame": { "x": 2880, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 16.aseprite",
+    "frame": { "x": 3072, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 17.aseprite",
+    "frame": { "x": 3264, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 18.aseprite",
+    "frame": { "x": 3456, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 19.aseprite",
+    "frame": { "x": 3648, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 20.aseprite",
+    "frame": { "x": 3840, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 21.aseprite",
+    "frame": { "x": 4032, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 22.aseprite",
+    "frame": { "x": 4224, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 23.aseprite",
+    "frame": { "x": 4416, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 24.aseprite",
+    "frame": { "x": 4608, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 25.aseprite",
+    "frame": { "x": 4800, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 26.aseprite",
+    "frame": { "x": 4992, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 27.aseprite",
+    "frame": { "x": 5184, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 28.aseprite",
+    "frame": { "x": 5376, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 29.aseprite",
+    "frame": { "x": 5568, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 30.aseprite",
+    "frame": { "x": 5760, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 31.aseprite",
+    "frame": { "x": 5952, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 32.aseprite",
+    "frame": { "x": 6144, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   },
+   {
+    "filename": "Torch_Red 33.aseprite",
+    "frame": { "x": 6336, "y": 0, "w": 192, "h": 192 },
+    "rotated": false,
+    "trimmed": false,
+    "spriteSourceSize": { "x": 0, "y": 0, "w": 192, "h": 192 },
+    "sourceSize": { "w": 192, "h": 192 },
+    "duration": 100
+   }
+ ],
+ "meta": {
+  "app": "https://www.aseprite.org/",
+  "version": "1.3.5-arm64",
+  "format": "RGBA8888",
+  "size": { "w": 6528, "h": 192 },
+  "scale": "1",
+  "frameTags": [
+   { "name": "Original", "from": 0, "to": 2, "direction": "forward", "color": "#f3ce52ff" },
+   { "name": "Idle", "from": 3, "to": 9, "direction": "forward", "color": "#57b9f2ff" },
+   { "name": "Run", "from": 10, "to": 15, "direction": "forward", "color": "#57b9f2ff" },
+   { "name": "Attack_Right", "from": 16, "to": 21, "direction": "forward", "color": "#fe5b59ff" },
+   { "name": "Attack_Down", "from": 22, "to": 27, "direction": "forward", "color": "#fe5b59ff" },
+   { "name": "Attack_Up", "from": 28, "to": 33, "direction": "forward", "color": "#fe5b59ff" }
+  ],
+  "layers": [
+   { "name": "Shadow", "opacity": 255, "blendMode": "normal" },
+   { "name": "Hand", "opacity": 255, "blendMode": "normal" },
+   { "name": "Body", "opacity": 255, "blendMode": "normal" },
+   { "name": "Torch", "opacity": 255, "blendMode": "normal" },
+   { "name": "Fire", "opacity": 255, "blendMode": "normal" }
+  ],
+  "slices": [
+  ]
+ }
+}
