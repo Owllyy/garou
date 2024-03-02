@@ -66,6 +66,10 @@ impl AttackBundle {
     }
 }
 
+
+#[derive(Default, Component, Reflect)]
+struct Life(u64);
+
 #[derive(Default, Component, Reflect)]
 struct Player {
     speed: Vec2,
@@ -74,6 +78,7 @@ struct Player {
 #[derive(Bundle)]
 struct PlayerBundle {
     player: Player,
+    life: Life,
     angular_damping: AngularDamping,
     direction: Direction,
     rigid_body: RigidBody,
@@ -85,6 +90,7 @@ impl PlayerBundle {
     fn new(spritesheet: Handle<Spritesheet>) -> Self {
         Self {
             player: Player { speed: Vec2::ZERO },
+            life: Life(5),
             direction: Direction(Vec2::ZERO),
             rigid_body: RigidBody::Kinematic,
             angular_damping: AngularDamping(100.),
@@ -142,7 +148,7 @@ struct EnemyBundle {
 }
 
 impl EnemyBundle {
-    fn new(spritesheet_handle: Handle<Spritesheet>) -> Self {
+    fn new(spritesheet_handle: Handle<Spritesheet>, position: Vec3) -> Self {
         Self {
             enemy: Enemy,
             rigid_body: RigidBody::Kinematic,
@@ -151,7 +157,7 @@ impl EnemyBundle {
                 animator: SpriteAnimator::from_anim(AnimHandle::from_index(5)),
                 spritesheet: spritesheet_handle,
                 sprite_bundle: SpriteSheetBundle{
-                    transform: Transform::from_translation(vec3(1., 1., 10.)),
+                    transform: Transform::from_translation(position),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -174,7 +180,7 @@ fn main() {
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
         .register_type::<EnemySpawnTimer>()
         .register_type::<Configuration>() // you need to register your type to display it
-        .insert_resource(EnemySpawnTimer(Timer::from_seconds(3.0, TimerMode::Once)))
+        .insert_resource(EnemySpawnTimer(Timer::from_seconds(2.0, TimerMode::Repeating)))
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .insert_resource(Gravity::ZERO)
         .add_plugins(LdtkPlugin)
@@ -219,7 +225,7 @@ fn spawn_enemies(
         );
 
         // spawn the animated sprite
-        commands.spawn(EnemyBundle::new(enemy_spritesheet));
+        commands.spawn(EnemyBundle::new(enemy_spritesheet, vec3(-350., 370., 10.)));
     }
 }
 
@@ -287,7 +293,7 @@ fn setup(
     //spawn map
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("map.ldtk"),
-        transform: Transform::default().with_translation(vec3(0., 0., -1.)),
+        transform: Transform::default().with_translation(vec3(-700., -600., -1.)),
         ..Default::default()
     });
 
