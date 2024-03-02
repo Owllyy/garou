@@ -199,7 +199,7 @@ fn dash(
     configuration: Res<Configuration>,
     keyboard_input: Res<Input<KeyCode>>,
     mut command: Commands,
-    mut query: Query<(Entity, &Direction, Option<&mut Dash>)>,
+    mut query: Query<(Entity, &Direction, Option<&mut Dash>), With<Player>>,
 ) {
     for (id, dir, dash) in &mut query {
         if keyboard_input.just_pressed(KeyCode::Space) && dash.is_none() {
