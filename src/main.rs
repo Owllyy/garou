@@ -130,8 +130,8 @@ fn main() {
         .insert_resource(Gravity::ZERO)
         .add_plugins(LdtkPlugin)
         .insert_resource(LevelSelection::index(0))
-        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, animate, attack))
-        .add_systems(Update, spawn_enemies)
+        .add_systems(Update, (keyboard_input, dash, apply_force, following_cam, attack))
+        .add_systems(Update, (spawn_enemies, animate))
         .add_plugins(PhysicsPlugins::default())
         .add_plugins(PhysicsDebugPlugin::default())
         .run();
@@ -315,15 +315,18 @@ fn animate(mut query: Query<(&mut SpriteAnimator, &Direction ,&mut Transform, Ha
     let (mut animator, direction, mut transform, _dash, attack) = query.single_mut();
     if attack {
         if direction.0.y > 0. {
-            animator.set_anim_index(5);
+            animator.set_anim_index(7);
         } else if direction.0.y < 0. {
-            animator.set_anim_index(4);
+            animator.set_anim_index(6);
         } else {
-            animator.set_anim_index(3);
+            if direction.0.x > 0.0 {
+                animator.set_anim_index(5);
+            }
+            animator.set_anim_index(8);
         }
     } else if direction.0.length() > 0. {
-        if direction.0.x < 0. {
-        } else {
+        if direction.0.x > 0.0 {
+            animator.set_anim_index(4);
         }
         animator.set_anim_index(2);
     } else {
