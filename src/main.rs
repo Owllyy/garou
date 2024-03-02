@@ -41,13 +41,13 @@ fn main() {
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             TrackCursorPlugin,
-            // AsepritesheetPlugin::new(&["json"]),
+            AsepritesheetPlugin::new(&["json"]),
         ))
         .add_systems(Startup, setup)
         .init_resource::<Configuration>() // `ResourceInspectorPlugin` won't initialize the resource
         .register_type::<Configuration>() // you need to register your type to display it
         .add_plugins(ResourceInspectorPlugin::<Configuration>::default())
-        // .add_systems(Startup, setup_aesprites)
+        .add_systems(Startup, setup_aesprites)
         .add_systems(Update, (
             keyboard_input_system,
             look_cursor,
@@ -62,7 +62,7 @@ fn setup_aesprites( mut commands: Commands, asset_server: Res<AssetServer>) {
     let sheet_handle = load_spritesheet(
         &mut commands,
         &asset_server,
-        "Tiny Swords/Effects/Fire/Fire.aseprite",
+        "Tiny Swords/Factions/Goblins/Troops/Torch/Red/Torch_Red.json",
         Anchor::Center,
     );
 
