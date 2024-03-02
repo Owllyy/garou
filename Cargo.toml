@@ -1,0 +1,17 @@
+[package]
+name = "garou"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bevy = { version = "0.13.0", features = ["wayland", "dynamic_linking"] }
+bevy_cursor = { version = "0.3.0", features = ["2d"] }
+bevy_xpbd_2d = "0.4.2"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
